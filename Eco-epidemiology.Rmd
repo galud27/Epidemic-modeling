@@ -1,0 +1,193 @@
+---
+title: "Eco-epidemiology"
+author: "Natalia"
+date: "2/23/2017"
+output: html_document
+---
+
+In this project, I will work on using the package deSolve to solve systems of ordinary differential equations. 
+We will use this pacckageto help us model SIR model of spread disease:
+Where the first set of depedant variables counts x (people or animals) in each group, each as fuction of time: 
+S=S(t) is the number of suceptibles individuals 
+I=I(t) is the number of infected individuals 
+R=R(t) is the number of recovered individuals
+N is the total population
+
+Implementation of an ODE in R has two parts: model specification and model application. 
+The model specification consists of:
+-	Defining model parameters and their values like birth, death, etc)
+-	Defining model state variables and their initial conditions (e.g. S,I,R,N, etc)
+-	 We can implement themodel equations to calculate the rate of change of the state variables in this case:  S,I,R. 
+
+
+The model application consists of:
+-	Specification of the time at which the model output is wanted
+-	Integration of the model equations 
+-	Plotting model results
+
+First lets examine SIR in a closed population: Density dependnat transmission
+
+```{r}
+library(deSolve)
+##In case the layout was changed, this code resets the layout to a single figure format:
+layout(matrix(1:1,nr=1))
+
+sir <- function(time, state, parameters) {
+  {
+    
+    S<-state[1]
+    I<-state[2]
+    R<-state[3]
+    #N<-S+I+R
+  }
+  with(as.list(c(state, parameters)), {
+    dS <- -beta * S * I
+    dI <- beta * S * I - gamma * I
+    dR <- gamma * I	
+    return(list(c(dS, dI, dR)))
+  })
+}
+init <- c(S <-0.99, I <- 0.01, R<- 0)
+parameters <- c(beta <- 4, gamma <- 1) 
+times <- seq(0,6, by = 0.1)
+out <- as.data.frame(ode(y = init, times = times, func = sir, parms = parameters))
+out$time <- NULL
+```
+Plot parameters B=4 and y=1
+
+```{r, echo=TRUE}
+matplot(times, out, type = "l", 
+        xlab = "Time", ylab = "Proportion of Population", 
+        main = "SIR in a CLOSED POPULATION, DENS DEP", 
+        lwd = 1, lty = 1, bty = "l", col = 2:4)
+
+
+legend(4.5, 0.8, c("Susceptibles", "Infecteds", "Recovereds"), 
+       pch = 1, col=c("red","green","blue"), cex = 0.6, horiz=F)
+```
+
+We can see from the graph that when an epidemic peaks, more susceptible people are becoming infected. The threshold of an epidemic is dI/dt=BSI-yI and if S<y/B the infection dies out.From this we can determine the threshold proportion of sucestibles: S>y/B= 1/R0
+=1/4=0.25
+
+Lets look at the changes when B=2 and y=1 and increase time 
+```{r, echo=TRUE}
+layout(matrix(1:1,nr=1))
+
+sir <- function(time, state, parameters) {
+  {
+    
+    S<-state[1]
+    I<-state[2]
+    R<-state[3]
+    #N<-S+I+R
+  }
+  with(as.list(c(state, parameters)), {
+    dS <- -beta * S * I
+    dI <- beta * S * I - gamma * I
+    dR <- gamma * I	
+    return(list(c(dS, dI, dR)))
+  })
+}
+init <- c(S <-0.99, I <- 0.01, R<- 0)
+parameters <- c(beta <- 2, gamma <- 1) 
+times <- seq(0,15, by = 0.1)
+out <- as.data.frame(ode(y = init, times = times, func = sir, parms = parameters))
+out$time <- NULL
+
+matplot(times, out, type = "l", 
+        xlab = "Time", ylab = "Proportion of Population", 
+        main = "SIR in a CLOSED POPULATION, DENS DEP", 
+        lwd = 1, lty = 1, bty = "l", col = 2:4)
+
+
+legend(4.5, 0.8, c("Susceptibles", "Infecteds", "Recovereds"), 
+       pch = 1, col=c("red","green","blue"), cex = 0.6, horiz=F)
+
+
+```
+
+Here, we can see that the number of susceptibles left at the end of the time period is close to 0.2.  In this case  the R0 is  (B/y=2/1)  2, and it is lower  than in the first case, it can be attributed the presence of susceptible due to low R0. There are less number of cases that the infectious case produced than in the first scenario.    
+
+
+Let's examine the changes in effective reproductive number(Re) during an infection 
+
+```{r, echo=TRUE}
+Re<-(beta/gamma)*out[1]
+matplot(times,Re, xlab="Times",ylab="Effective Reproductive Number ",type="l",
+        col="red",lwd=1, lty=1)
+abline(h=1,lty=2,col="black")
+text( x = 4, y = 1.2, labels ="Transmission Threshold", cex = 0.8)
+
+```
+We can see here that when  Re is under 1, the epidemic starts to decrease.  More of the susceptible people that became infected then became recovered. There is also less susceptible people due to vaccination. If Re is under 1 the epidemic starts to die off. 
+
+
+Now let's examine the model for an open population 
+```{r, echo=TRUE}
+
+
+layout(matrix(1:1,nr=1))
+
+
+sir2 <- function(time, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    dS <- birth  - beta * S * I - death * S
+    dI <- beta * S * I - gamma  * I   - death * I
+    dR <- gamma * I - death * R
+    return(list(c(dS, dI, dR)))
+  })
+}
+
+init <- c(S =0.99, I = 0.01, R=0.0)
+parameters <- c(beta = 4, gamma = 1, birth=0.03, death = 0.03)
+times <- seq(0,6, by = 1)
+out <- as.data.frame(ode(y = init, times = times, func = sir2, parms = parameters))
+out$time <- NULL
+
+matplot(times, out, type = "l", xlab = "Time", 
+        ylab = "Susceptibles and Recovereds", main = "SIR Model OPEN POPULATION", lwd = 1, lty = 1, bty = "l", col = 2:4)
+legend('topright', 1, c("Susceptibles", "Infecteds", "Recovereds"), 
+       pch = 1, col = 2:4, horiz=T, cex=0.8)
+
+
+#windows(width=7, height=4) # this is so it works for our RStudio users.
+par(mar=c(2.5,2.5,1,1))
+
+
+
+```
+We can see that the number of infected start to increase faster, and it starts to increase exponentially from 0 to almost 1 and from time 1 to 2 there is a bigger exponential growth. The curve does  not balance out as it was observed in the first graph with a closed population. In this models we also have more  birth and death rates, so there are more individuals introduce that are susceptible and there are also individuals been removed by accounting for the death rates.
+
+
+
+We can also compare models of transmission by looking at desinty dependant and frequency dependant 
+```{r, echo=TRUE}
+##reset the layout to a single figure:
+layout(matrix(1:1,nr=1))
+
+
+R<-0
+S<-I<-1000
+Ss<-Is<-seq(1,S,length=11)
+N<-S+I+R
+
+betaD<-0.1
+#betaF<-betaD*N    
+betaF<-0.1
+
+
+mat1<-sapply(Is,function(i) betaD*i*Ss)
+mat2<-sapply(Is,function(i) betaF*i*Ss/(i+Ss+R))
+
+layout(matrix(1:2,nr=1))
+
+persp(mat1,theta=20,phi=15,r=10,zlim=c(0,betaD*S*I),main="Density dependent",xlab="I",ylab="S",zlab="Transmission rate")
+
+persp(mat2,theta=20,phi=15,r=10,zlim=c(0,betaF*S*I/N),main="Frequency dependent",xlab="I",ylab="S",zlab="Transmission rate")
+
+
+```
+
+
+
+
